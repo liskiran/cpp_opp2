@@ -77,6 +77,8 @@ std::unique_ptr<Task> generate_task(Container<std::unique_ptr<Task>>& container)
 const int COUNT_TASK_GENERATING = 20;
 
 int main() {
+  // commentary for merge request
+
   srand(time(NULL));  // for generating random numbers
 
   Container<std::unique_ptr<Task>> task_list;
