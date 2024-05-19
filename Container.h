@@ -5,36 +5,23 @@
 
 template <typename Type>
 class Container {
-  public:
+  private:
   struct Node {
-    Type _value;
+    Type _value = 0;
     Node *_prev = nullptr;
     Node *_next = nullptr;
 
-    explicit Node() : _value(0), _prev(nullptr), _next(nullptr) {
-    }
-
-    explicit Node(Type value) : _value(value), _prev(nullptr), _next(nullptr) {
-    }
-    explicit Node(Type &&value) : _value(std::move(value)), _prev(nullptr), _next(nullptr) {
-    }
-
-    explicit Node(const Type &value, Node *prev, Node *next)
-        : _value(value), _prev(prev), _next(next) {
-    }
-    explicit Node(Type &&value, Node *prev, Node *next)
+    Node(Type &&value, Node *prev, Node *next)
         : _value(std::move(value)), _prev(prev), _next(next) {
     }
   };
 
   public:
-  explicit Container() : _head(nullptr), _tail(nullptr), _size(0), _is_cleared(false) {
-  }
-
   ~Container() {
     clear();
   }
 
+  private:
   struct Iterator {
 private:
     using iterator_category = std::forward_iterator_tag;
@@ -46,24 +33,30 @@ private:
 public:
     Iterator(pointer ptr) : m_ptr(ptr) {
     }
+
     Type &operator*() const {
       return m_ptr->_value;
     }
+
     Type &operator->() {
       return *m_ptr->_value;
     }
+
     Iterator &operator++() {
       m_ptr = m_ptr->_next;
       return *this;
     }
+
     Iterator operator++(int) {
       Iterator tmp = *this;
       ++(*this);
       return tmp;
     }
+
     friend bool operator==(const Iterator &a, const Iterator &b) {
       return a.m_ptr == b.m_ptr;
     }
+
     friend bool operator!=(const Iterator &a, const Iterator &b) {
       return a.m_ptr != b.m_ptr;
     }
@@ -74,10 +67,19 @@ private:
 
   public:
   Iterator begin() noexcept {
-    return Iterator(_head);
+    if (_head) {
+      return Iterator(_head);
+    } else {
+      return std::runtime_error("Cant get begin of container!");
+    }
   }
+
   Iterator end() noexcept {
-    return Iterator(_tail->_next);
+    if (_tail) {
+      return Iterator(_tail->_next);
+    } else {
+      return std::runtime_error("Cant get end of container!");
+    }
   }
 
   public:
@@ -91,50 +93,56 @@ private:
 
   public:
   void push_front(Type value) {
-
     Node *new_front = new Node(std::move(value), nullptr, _head);
-    if (_size == 0) {
+
+    if (empty()) {
       _head = new_front;
       _tail = _head;
     } else {
       _head->_prev = new_front;
       _head = new_front;
     }
-    _size++;
+    ++_size;
   }
 
   void push_back(Type value) {
     Node *new_back = new Node(std::move(value), _tail, nullptr);
-    if (_size == 0) {
+
+    if (empty()) {
       _tail = _head = new_back;
     } else {
       _tail->_next = new_back;
       _tail = new_back;
     }
-    _size++;
+    ++_size;
   }
 
   public:
-  void pop_front() {
-    if (_size == 0) {
+  Type &pop_front() {
+    if (empty()) {
       throw std::runtime_error("method: remove_front, error: empty container");
     }
+
+    auto &pop_value = front();
     if (_size == 1) {
       _head = _tail = nullptr;
     }
+
     if (_size > 1) {
       Node *remove_front = _head;
       _head = _head->_next;
       delete remove_front;
     }
 
-    _size--;
+    --_size;
+    return pop_value;
   }
 
   Type &pop_back() {
-    if (_size == 0) {
+    if (empty()) {
       throw std::runtime_error("method: remove_front, error: empty container");
     }
+
     auto &pop_value = back();
     if (_size == 1) {
       _head = _tail = nullptr;
@@ -145,21 +153,21 @@ private:
       _tail = _tail->_prev;
       delete remove_back;
     }
+    --_size;
 
-    _size--;
     return pop_value;
   }
 
   public:
   Type &front() const {
-    if (_size == 0) {
+    if (empty()) {
       throw std::runtime_error("method: front, error: empty container");
     }
     return _head->_value;
   }
 
   Type &back() const {
-    if (_size == 0) {
+    if (empty()) {
       throw std::runtime_error("method: back, error: empty container!");
     }
     return _tail->_value;
@@ -168,7 +176,7 @@ private:
   public:
   size_t size() const {
     return _size;
-  }  // O(1) WORK
+  }
 
   bool empty() {
     return size() == 0;
@@ -176,7 +184,7 @@ private:
 
   public:
   void swap(Container &another) {
-    if (this->_head == nullptr || another._head == nullptr) {
+    if (empty() || another.empty()) {
       throw std::runtime_error("method: swap, error: one of the container is empty");
     }
     std::swap(this->_head, another._head);
@@ -185,32 +193,23 @@ private:
   }
 
   void reverse() {
-    if (_head == nullptr || _tail == nullptr) {
+    if (empty()) {
       throw std::runtime_error("method: reverse, error: container is empty");
     }
-
     Node *from_begin = _head;
     Node *from_end = _tail;
-
     for (size_t iter = 0; from_begin != from_end && iter < _size / 2;
          from_begin = from_begin->_next, from_end = from_end->_prev) {
       std::swap(from_begin->_value, from_end->_value);
     }
   }
 
-  bool is_cleared() const {
-    return _is_cleared;
-  }
-
   void clear() {
-    _is_cleared = true;
-
-    if (_is_cleared || _head == nullptr || _tail == nullptr || empty()) {
-
+    if (empty()) {
       return;
     }
 
-    for (Node *p = _head; p != _tail->_next;) {
+    for (Node *p = _head; _tail->_next != nullptr;) {
       Node *current_node = p;
       p = p->_next;
       delete current_node;
@@ -236,10 +235,9 @@ private:
   }
 
   private:
-  Node *_head;
-  Node *_tail;
+  Node *_head = nullptr;
+  Node *_tail = nullptr;
 
   private:
-  size_t _size;
-  bool _is_cleared;
+  size_t _size = 0;
 };

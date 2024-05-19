@@ -1,4 +1,5 @@
 #include <memory>
+
 #include "Object.h"
 
 enum TaskNumber {
@@ -77,30 +78,23 @@ std::unique_ptr<Task> generate_task(Container<std::unique_ptr<Task>>& container)
 const int COUNT_TASK_GENERATING = 20;
 
 int main() {
-  // commentary for merge request
-
-  srand(time(NULL));  // for generating random numbers
+  srand(time(NULL));
 
   Container<std::unique_ptr<Task>> task_list;
   Container<std::string> task_informations_list;
-
-  task_list.push_back(std::make_unique<Binary<int>>(Binary(Operation::Multiply, 1, 2)));
 
   for (size_t i = 0; i < COUNT_TASK_GENERATING; i++) {
     task_list.push_back(generate_task(task_list));
   }
 
-  size_t task_number = 1;
   std::cout << "Task list size: " << task_list.size() << '\n';
 
   for (auto& task : task_list) {
     task->execute();
     task_informations_list.push_back(task->toString());
-    if (task_list.empty()) {  // if container is cleared, stop executing
-      std::cout << "\nallo\n";
+    if (task_list.empty()) {
       break;
     }
-    task_number++;
   }
 
   std::cout << task_list.size() << '\n';
@@ -109,13 +103,14 @@ int main() {
     std::cout << task_info << "\n";
   }
 
-  if (!task_list.is_cleared()) {
+  if (!task_list.empty()) {
     task_list.clear();
   }
+
   task_informations_list.clear();
 
-  std::cout << "task list size: " << task_list.size() << '\n';
-  std::cout << "task informations size: " << task_informations_list.size() << '\n';
+  std::cout << "task list size after clearing: " << task_list.size() << '\n';
+  std::cout << "task informations size after cleaning: " << task_informations_list.size() << '\n';
 
   return 0;
 }

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <iostream>
-#include <sstream>
 #include <stdexcept>
 #include <string>
+#include <optional>
+#include <format>
 
 #include "Container.h"
 
@@ -27,11 +27,20 @@ class Object {
   inline static size_t _counter = 0;
 };
 
-class NamedObject : virtual Object {
+class Task : public virtual Object {
   public:
-  NamedObject(std::string const &name) : Object(), _name(name) {};
+  virtual void execute() = 0;
+};
 
-  std::string toString() const noexcept override {
+class Named : public virtual Object {
+  public:
+  Named() {
+  }
+
+  Named(const std::string &name) : _name(name) {
+  }
+
+  std::string name() const {
     return _name;
   }
 
@@ -39,76 +48,45 @@ class NamedObject : virtual Object {
   std::string _name;
 };
 
-class Task : public virtual Object {
-  public:
-  virtual void execute() = 0;
-
-  bool is_done() const {
-    return _is_done;
-  }
-
-  void set_id_done() {
-    _is_done = true;
-  }
-
-  private:
-  bool _is_done = false;
-};
-
 enum class Operation : char { Add = '+', Subtract = '-', Multiply = '*', Divide = '/' };
 
 template <typename T>
-class Binary : public Task, public NamedObject {
+class Binary : public Task, public Named {
   public:
-  Binary(Operation op, T first_op, T second_op)
-      : NamedObject("Binary"), _op(op), _first_op(first_op), _second_op(second_op), _result(0) {
+  Binary(Operation op, T first_val, T second_val)
+      : Named("Binary operation"), _op(op), _first_val(first_val), _second_val(second_val) {
   }
 
   std::string toString() const noexcept override {
-    std::stringstream message;
-    if (is_done()) {
-      message << _first_op << static_cast<char>(_op) << _second_op << " = " << _result;
-    } else {
-      message << "None";
-    }
-    return message.str();
+    return std::format("{}: {} {} {} = {}", name(), _first_val, static_cast<char>(_op), _second_val,
+                       _result.value());
   }
 
   void execute() override {
-    set_id_done();
-    switch (_op) {
-      case Operation::Add: {
-        _result = _first_op + _second_op;
-        break;
-      }
-      case Operation::Subtract: {
-        _result = _first_op - _second_op;
-        break;
-      }
-      case Operation::Divide: {
-        if (std::abs(_second_op) > 0) {
-          _result = _first_op / _second_op;
-        } else {
-          throw std::runtime_error("Zero division");
-        }
-        break;
-      }
-      case Operation::Multiply: {
-        _result = _first_op * _second_op;
-        break;
-      }
-    }
+    auto operation = static_cast<char>(_op);
+    _result = funcs[operation](_first_val, _second_val);
   }
 
   private:
+  inline static std::unordered_map<char, std::function<int(int, int)>> funcs = {
+      {'+', [](T first, T second) { return first + second; }},
+      {'-', [](T first, T second) { return first - second; }},
+      {'*', [](T first, T second) { return first * second; }},
+      {'/',
+       [](T first, T second) {
+         if (std::abs(second) > 0) {
+           return first / second;
+         } else {
+           throw std::runtime_error("Zero division");
+         }
+       }},
+  };
+
+  private:
   Operation _op;
-
-  private:
-  T _first_op;
-  T _second_op;
-
-  private:
-  T _result;
+  T _first_val;
+  T _second_val;
+  std::optional<T> _result;
 };
 
 template <typename T>
@@ -119,7 +97,7 @@ class Add : public Task {
   }
 
   std::string toString() const noexcept override {
-    return "added task";
+    return std::format("Added task in container");
   }
 
   void execute() override {
@@ -138,18 +116,11 @@ class ClearContainer : public Task {
   }
 
   std::string toString() const noexcept override {
-    std::stringstream message;
-    message << "status: " << (is_done() ? "cleared" : "not cleared");
-    return message.str();
+    return std::string("Container is cleared");
   }
 
   void execute() override {
-    if (!is_done()) {
-      _container.clear();
-    } else {
-      std::clog << "Container already is empty!";
-    }
-    set_id_done();
+    _container.clear();
   }
 
   private:
@@ -159,19 +130,11 @@ class ClearContainer : public Task {
 template <typename T>
 class Counter : public Task {
   public:
-  Counter(Container<std::unique_ptr<T>> &container) : _counter(0), _container(container) {
-    _counter = container.size();
+  Counter(Container<std::unique_ptr<T>> &container) : _container(container) {
   }
 
   std::string toString() const noexcept override {
-    std::stringstream task_information;
-    task_information << "count of tasks: ";
-    if (is_done()) {
-      task_information << _counter;
-    } else {
-      task_information << "None";
-    }
-    return task_information.str();
+    return std::format("Count of tasks: {}", _counter.value());
   }
 
   std::size_t get_contrainer_size() const {
@@ -180,11 +143,10 @@ class Counter : public Task {
 
   void execute() override {
     _counter = _container.size();
-    set_id_done();
   }
 
   private:
-  size_t _counter;
+  std::optional<size_t> _counter;
   Container<std::unique_ptr<T>> &_container;
 };
 
@@ -194,25 +156,15 @@ class ObjectCounter : public Task {
   }
 
   std::string toString() const noexcept override {
-    std::stringstream message;
-    message << "count of all objects: ";
-
-    if (is_done()) {
-      message << _result;
-    } else {
-      message << "None";
-    }
-
-    return message.str();
+    return std::format("Count of all objects: {}", _result.value());
   }
 
   void execute() override {
-    set_id_done();
     _result = counter();
   }
 
   private:
-  size_t _result = 0;
+  std::optional<size_t> _result;
 };
 
 template <typename T>
@@ -222,24 +174,14 @@ class ObjectCounterContainer : public Task {
   }
 
   std::string toString() const noexcept override {
-    std::stringstream message;
-    message << "count of objects in container: ";
-
-    if (is_done()) {
-      message << _result;
-    } else {
-      message << "None";
-    }
-
-    return message.str();
+    return std::format("Count of objects in container: {}", _result.value());
   }
 
   void execute() override {
-    set_id_done();
     _result = _container.size();
   }
 
   private:
-  size_t _result;
+  std::optional<size_t> _result;
   Container<std::unique_ptr<T>> _container;
 };
