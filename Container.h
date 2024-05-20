@@ -11,7 +11,7 @@ class Container {
     Node *_prev = nullptr;
     Node *_next = nullptr;
 
-    Node(Type &&value, Node *prev, Node *next)
+    explicit Node(Type &&value, Node *prev, Node *next)
         : _value(std::move(value)), _prev(prev), _next(next) {
     }
   };
